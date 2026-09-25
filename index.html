@@ -1,0 +1,616 @@
+<!--
+  File: index.html
+  Author: UG.
+  Created: 2026-09-25
+  Last Updated: 2026-09-25
+  HTML Version: WHATWG HTML Living Standard
+
+  License: MIT License
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+-->
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sawarabi+Gothic&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+          --indent-default: 0em;
+          --indent-quest_title: 0em;
+          --indent-quest_subtitle: 1em;
+          --indent-quest_item: 2em;
+          --indent-reward_title: 0em;
+          --indent-reward_item: 1em;
+        }
+
+        .indent-default {
+            margin-left: var(--indent_default);
+        }
+        .indent-quest_title {
+            margin-left: var(--indent-quest_title);
+        }
+        .indent-quest_subtitle {
+            margin-left: var(--indent-quest_subtitle);
+        }
+        .indent-quest_item {
+            margin-left: var(--indent-quest_item);
+        }
+        .indent-reward_title {
+            margin-left: var(--indent-reward_title);
+        }
+        .indent-reward_item {
+            margin-left: var(--indent-reward_item);
+        }
+
+        .marker.subtitle::before { content: "■"; }
+        .marker.remaining::before { content: "🌟"; }
+        .marker.remind2::before { content: "⚠️"; }
+        .marker.fin_item::before { content: "📊"; }
+/*        .marker.item::before { content: "🔹"; } */   /* blue diamond */
+        .marker.item::before { content: "🔸"; }    /* red diamond */
+
+        body {
+            background-color: #f3eade;
+            font-family: 'Sawarabi Gothic', sans-serif;
+        }
+        .syutugeki_text {
+            color: #ec6463;
+            font-weight: normal;
+        }
+        .ensyu_text {
+            color: #5da344;
+            font-weight: normal;
+        }
+        .ensei_text {
+            color: #5dc0c0;
+            font-weight: normal;
+        }
+        .color_ivent_finish {
+            color: #ff0000;
+            font-weight: bold;
+        }
+        .color_mission_reset {
+            color: #0000ff;
+            font-weight: normal;
+        }
+        .color_remind {
+            color: #ff0000;
+            font-weight: bold;
+        }
+        .color_remind2 {
+            color: #a02828;
+            font-weight: normal;
+        }
+        .color_maxitem {
+            color: #0000ff;
+            font-weight: normal;
+        }
+        .color_r_myitem {
+            color: #006000;
+            font-weight: normal;
+        }
+        .textstyle_bold {
+            font-weight: bold;
+        }
+        .underline-wavy_red {
+            text-decoration: underline wavy red;
+            text-decoration-thickness: auto;
+        }
+        /* 波線非対応なら下線に変更する */
+        @supports not (text-decoration-style: wavy) {
+          .underline-wavy_red {
+            text-decoration-style: solid;
+          }
+        }
+        .footer {
+            margin-top: 2em;
+            padding-top: 0.5em;
+            border-top: 1px solid #c0c0c0;
+            font-size: 0.8em;
+            color: #606060;
+        }
+    </style>
+</head>
+
+<body>
+    <h2 id="event-title"></h2>
+
+    <p id="tg000"></p>
+    <p><span id="tg010"></span><span id="tg011"></span></p>
+    <p id="tg020"></p>
+    <p id="tg021"></p>
+
+    <script src="ivdata.js"></script>
+    <script>
+
+/////// イベント毎に確認すること ↓↓↓ ここから ↓↓↓
+        const str_item_name = "豆";
+        const str_maxitem   = `最大${str_item_name}数`;
+        const str_myitem    = `現在の${str_item_name}数`;
+        const str_r_myitem  = `${str_item_name}残数`;
+        const str_item      = "豆";
+        const str_counter_word = "個";  // "個";
+        const str_remind2   = `イベント終了後、${str_item_name}は報酬と交換可能になります。`;
+        const str_fin_item  = `イベント終了時点での最大${str_item_name}数は `;
+        const str_fin_item2 = ` となる見込みです。`;
+
+        const exp_maxitem  = `現時点で取得できる${str_item_name}の最大数`;
+        const exp_myitem   = `現時点であなたが取得している${str_item_name}数に合わせてください`;
+        const exp_r_myitem = `報酬交換後の残り${str_item_name}数`;
+        const exp_fin_item = `イベント終了時点で取りこぼしがなかった場合の${str_item_name}数`;
+/////// イベント毎に確認すること ↑↑↑ ここまで ↑↑↑
+
+        const remindDays = 6;           // リマインド表示はイベント終了の 6 日前から
+        const remindTime = remindDays * ( 24 * 60 * 60 * 1000 );
+        const s_count  = 60;            // 時刻補正は60秒毎
+        const s_count_err = 600;        // 時刻取得失敗時の再取得は600秒後
+        const s_fetch_timeout = 3000;   // 時刻取得のタイムアウト (ms)
+
+        const days = ["日曜日", "月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "土曜日"];
+        const pad = (n,d) => n.toString().padStart(d, '0');
+
+        const str_title_quest   = "【任務】";
+        const str_title_daily   = "Daily";
+        const str_title_weekly  = "Weekly";
+        const str_title_monthly = "Monthly";
+        const str_title_once    = "Once";
+        const str_title_reward  = "【報酬】";
+        const str_dropped = "取りこぼし";
+
+        // タイトル設定
+        document.title = ivent_name;
+        document.getElementById('event-title').textContent = ivent_name;
+
+        let prevDays = -1;
+        let myitem = 0;
+        let r_myitem = 0;
+        let sum = 0;
+        let f_sum = 0;
+        let item_count = Array(item.length / 3).fill(0);
+
+        let currentDate = new Date();
+        let syncTime = Date.now();              // 最後に補正した時刻 (epoch ms)
+        let syncPerf = performance.now();       // その時点の単調増加タイマー値
+        let nextSyncPerf = 0;                   // 次回補正を行う performance.now() 値
+
+        async function getCurrentDateTime() {
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), s_fetch_timeout);
+            try {
+                const response = await fetch("https://worldtimeapi.org/api/timezone/Asia/Tokyo", { signal: ctrl.signal });
+                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                const data = await response.json();
+                const d = new Date(data.datetime);
+                if (isNaN(d.getTime())) throw new Error("Invalid datetime");
+                return d;
+            } catch (error) {
+                console.warn("Error fetching current date and time:", error);
+                return null;
+            } finally {
+                clearTimeout(timer);
+            }
+        }
+
+        async function calculateTimeDifference(targetDate) {
+            if( performance.now() >= nextSyncPerf ) {
+                const d = await getCurrentDateTime();
+                if( d !== null ) {
+                    syncTime = d.getTime();
+                    syncPerf = performance.now();
+                    nextSyncPerf = syncPerf + s_count * 1000;
+                } else {
+                    // 取得失敗時は端末の時計を使い、再取得までの間隔を延ばす
+                    syncTime = Date.now();
+                    syncPerf = performance.now();
+                    nextSyncPerf = syncPerf + s_count_err * 1000;
+                }
+            }
+            currentDate = new Date(syncTime + (performance.now() - syncPerf));
+            return currentDate - targetDate;
+        }
+
+        function daycount(diffTime) {
+            let days = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            let hours = Math.floor((diffTime % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            let minutes = Math.floor((diffTime % (1000 * 60 * 60)) / (1000 * 60));
+            let seconds = Math.floor((diffTime % (1000 * 60)) / 1000);
+
+            let days_adjust = (baseDate.getDay() + 6) % 7;
+            let weeks = Math.floor((days + days_adjust) / 7) + 1;
+
+            return{
+                days:    days,
+                hours:   hours,
+                minutes: minutes,
+                seconds: seconds,
+                weeks:   weeks
+            };
+        }
+
+        // 月間任務の更新は毎月1日 05:00 (JST)。
+        // JST(+9h) から 05:00(-5h) を差し引いた +4h ずらしの UTC 暦月で数える（実行環境のタイムゾーンに依存しない）。
+        const MONTH_SHIFT = (9 - 5) * (60 * 60 * 1000);
+        function monthcount(targetDate) {
+            const t = new Date(targetDate.getTime() + MONTH_SHIFT);
+            const b = new Date(baseDate.getTime() + MONTH_SHIFT);
+            let diffMonths = (t.getUTCFullYear() - b.getUTCFullYear()) * 12;
+            diffMonths += (t.getUTCMonth() - b.getUTCMonth() + 1);
+
+            return diffMonths;
+        }
+
+        async function main() {
+            let diffMs = await calculateTimeDifference(baseDate);
+            let dTime = daycount( diffMs );
+
+            let diffDays = dTime.days;
+            let diffHours = dTime.hours;
+            let diffMinutes = dTime.minutes;
+            let diffSeconds = dTime.seconds;
+
+            let diffMonths = monthcount( (currentDate < finishDate) ? currentDate : finishDate );  // 終了後は終了日時で打ち切り
+
+            let i_week = dTime.weeks;
+            let i_day = (currentDate.getDay() + 6) % 7 + 1;
+            let i_hours = currentDate.getHours();
+
+            let tempDiff = finishDate - baseDate;
+            dTime = daycount( tempDiff );
+            if( diffMs >= tempDiff ) {
+                let tempDays = diffDays;
+                let tempHours = diffHours;
+                let tempMinutes = diffMinutes;
+                let tempSeconds = diffSeconds;
+
+                diffDays = dTime.days;
+                diffHours = dTime.hours;
+                diffMinutes = dTime.minutes;
+                diffSeconds = dTime.seconds;
+
+                i_week = dTime.weeks;
+
+                document.querySelector("#tg000").innerHTML = `<span class="color_ivent_finish">${ivent_name2}は ${diffDays + 1}日間開催され、終了しました。</span> (${tempDays}.${pad(tempHours,2)}:${pad(tempMinutes,2)}:${pad(tempSeconds,2)})`
+                document.querySelector("#tg010").innerHTML = "";
+                document.querySelector("#tg011").innerHTML = "";
+            } else {
+                document.querySelector("#tg000").innerHTML = `${ivent_name2}開始から ${diffDays + 1}日目。(${diffDays}.${pad(diffHours,2)}:${pad(diffMinutes,2)}:${pad(diffSeconds,2)})`
+                if( i_hours >= 0 && i_hours <= 4 ) {
+                    if( i_day === 1 ) {
+                        document.querySelector("#tg010").innerHTML = `第${i_week+1}週の${i_day}日目（${days[i_day % 7]}）です。`;
+                    } else {
+                        document.querySelector("#tg010").innerHTML = `第${i_week}週の${i_day}日目（${days[i_day % 7]}）です。`;
+                    }
+                    document.querySelector("#tg011").innerHTML = `　<span class="color_mission_reset">[任務の更新は 05:00 AM]</span>`;
+                } else {
+                    document.querySelector("#tg010").innerHTML = `第${i_week}週の${i_day}日目（${days[i_day % 7]}）です。`;
+                    document.querySelector("#tg011").innerHTML = "";
+                }
+            }
+
+            let finDate = finishDate - baseDate;
+            dTime = daycount( finDate );
+            let f_Days = dTime.days;
+            let f_Hours = dTime.hours;
+            let f_Minutes = dTime.minutes;
+            let f_Seconds = dTime.seconds;
+            let f_Weeks = dTime.weeks;
+            let f_Months = monthcount( finishDate );
+
+            let r_Date = finishDate - currentDate + 1000;
+            if( r_Date <= remindTime && r_Date > 0 ) {
+                dTime = daycount( r_Date );
+                let r_Days = dTime.days;
+                let r_Hours = dTime.hours;
+                let r_Minutes = dTime.minutes;
+                let r_Seconds = dTime.seconds;
+
+                document.querySelector("#tg021").innerHTML = `<span class="color_remind2 marker remind2">${str_remind2}</span>`;
+                if( r_Days > 0 ) {
+                    document.querySelector("#tg020").innerHTML = `<span class="color_remind">イベント終了まで、あと ${r_Days}日と${r_Hours}時間${pad(r_Minutes,2)}分${pad(r_Seconds,2)}秒 です。</span>`;
+                } else {
+                    document.querySelector("#tg020").innerHTML = `<span class="color_remind">イベント終了まで、あと ${r_Hours}時間${pad(r_Minutes,2)}分${pad(r_Seconds,2)}秒 です。</span>`;
+                }
+            } else {
+                document.querySelector("#tg020").innerHTML = "";
+                document.querySelector("#tg021").innerHTML = "";
+            }
+
+            if (diffDays !== prevDays) {
+                prevDays = diffDays;
+                sum = 0;
+                f_sum = 0;
+
+                // Daily 任務
+                d_quest.forEach((_, i) => {
+                    if (i % 2 === 0) {
+                        let name = d_quest[i];
+                        let count = d_quest[i + 1];
+                        document.querySelector(`#tg10${Math.floor(i / 2)}`).innerHTML = `<span>${name}</span> : ${str_item}${count}${str_counter_word} ×${diffDays + 1} ⇒ <span class="textstyle_bold">${count * (diffDays + 1)}${str_counter_word}</span>`;
+                        sum += count * (diffDays + 1);
+                        f_sum += count * (f_Days + 1);
+                    }
+                });
+
+                // Weekly 任務
+                w_quest.forEach((_, i) => {
+                    if (i % 2 === 0) {
+                        let name = w_quest[i];
+                        let count = w_quest[i + 1];
+                        document.querySelector(`#tg11${Math.floor(i / 2)}`).innerHTML = `<span>${name}</span> : ${str_item}${count}${str_counter_word} ×${i_week} ⇒ <span class="textstyle_bold">${count * i_week}${str_counter_word}</span>`;
+                        sum += count * i_week;
+                        f_sum += count * f_Weeks;
+                    }
+                });
+
+                // Monthly 任務
+                m_quest.forEach((_, i) => {
+                    if (i % 2 === 0) {
+                        let name = m_quest[i];
+                        let count = m_quest[i + 1];
+                        document.querySelector(`#tg12${Math.floor(i / 2)}`).innerHTML = `<span>${name}</span> : ${str_item}${count}${str_counter_word} ×${diffMonths} ⇒ <span class="textstyle_bold">${count * diffMonths}${str_counter_word}</span>`;
+                        sum += count * diffMonths;
+                        f_sum += count * f_Months;
+                    }
+                });
+
+                // 単発 任務
+                s_quest.forEach((_, i) => {
+                    if (i % 2 === 0) {
+                        let name = s_quest[i];
+                        let count = s_quest[i + 1];
+                        document.querySelector(`#tg13${Math.floor(i / 2)}`).innerHTML = `<span>${name}</span> : ${str_item}${count}${str_counter_word} ⇒ <span class="textstyle_bold">${count}${str_counter_word}</span>`;
+                        sum += count;
+                        f_sum += count;
+                    }
+                });
+
+                myitem = sum;
+                if( isLocalStorageAvailable() ) {
+                    const saved = localStorage.getItem(key_myitem);
+                    if( saved !== null && saved !== "" && Number.isFinite(Number(saved)) ) myitem = Math.max(0, Math.floor(Number(saved)));
+                }
+                if( myitem > sum ) myitem = sum; // myitem上限補正
+                document.querySelector("#tg200").innerHTML = `<span class="color_maxitem marker remaining" title="${exp_maxitem}">${str_maxitem}：<span class="textstyle_bold underline-wavy_red">${sum}${str_counter_word}</span></span>`;
+            }
+            if( STATUS_FIN === "終了日確定" && r_Date > 0 ) {
+                document.querySelector("#tg210").innerHTML = `<span class="color_r_myitem marker fin_item" title="${exp_fin_item}">${str_fin_item}<span class="textstyle_bold underline-wavy_red">${f_sum}${str_counter_word}</span>${str_fin_item2}</span>`;
+            } else {
+                document.querySelector("#tg210").innerHTML = "";
+            }
+
+            if( STATUS_REW !== "報酬不明" ) d_tg300();
+
+            document.querySelectorAll("p").forEach(function(p) {
+                p.innerHTML = p.innerHTML.replace(/<span>\[出撃\]/g, '<span class="syutugeki_text">[出撃]');
+            });
+            document.querySelectorAll("p").forEach(function(p) {
+                p.innerHTML = p.innerHTML.replace(/<span>\[演習\]/g, '<span class="ensyu_text">[演習]');
+            });
+            document.querySelectorAll("p").forEach(function(p) {
+                p.innerHTML = p.innerHTML.replace(/<span>\[遠征\]/g, '<span class="ensei_text">[遠征]');
+            });
+        }
+
+        function d_tg300() {
+            if (isLocalStorageAvailable()) {
+                localStorage.setItem(key_myitem, myitem);
+            }
+
+            do {
+                r_myitem = myitem;
+                let d_item = sum - myitem;
+                document.querySelector("#tg300").innerHTML = `<span class="color_maxitem marker remaining" title="${exp_myitem}">${str_myitem}：
+                    <span class="textstyle_bold"><button id="myitem_dec">ー</button>
+                    <span id="myitem_sum">${myitem}</span>${str_counter_word}
+                    <button id="myitem_inc">＋</button></span></span>`;
+                if( d_item > 0 ) {
+                    document.querySelector("#tg301").innerHTML = `　（${str_dropped}：<span class="textstyle_bold">${d_item}${str_counter_word}</span>）`;
+                } else {
+                    document.querySelector("#tg301").innerHTML = "";
+                }
+
+                // 報酬計算
+                let jj = -1;
+                item.forEach((_, i) => {
+                    if(i % 3 === 0) {
+                        let j = Math.floor(i / 3);
+                        let cost = item[i + 1];
+                        r_myitem -= item_count[j] * cost;
+                        document.querySelector(`#tg31${j + 1}`).innerHTML = `${item[i]} : 必要${str_item}数 ${cost}${str_counter_word}　
+                            <button id="item_dec${j}">ー</button>
+                            <span class="textstyle_bold"><span id="item_count${j}">${item_count[j]}</span>回交換</span>
+                            <button id="item_inc${j}">＋</button>`;
+                        if(item_count[j] > 0) {
+                            jj = j;
+                            document.querySelector(`#tg32${j + 1}`).innerHTML = ` ⇒ <span class="textstyle_bold">${item_count[j] * item[i+1]}${str_counter_word}</span>消費`;
+                        } else {
+                            document.querySelector(`#tg32${j + 1}`).innerHTML = "";
+                        }
+                    }
+                });
+
+                if(r_myitem < 0 && jj >= 0) item_count[jj]--;
+
+            } while( r_myitem < 0 );
+
+            // 残数
+            document.querySelector("#tg400").innerHTML = `<span class="color_r_myitem marker remaining" title="${exp_r_myitem}">${str_r_myitem}：<span class="textstyle_bold underline-wavy_red">${r_myitem}${str_counter_word}</span></span>`;
+        }
+
+        function isLocalStorageAvailable() {
+            try {
+                const testKey = "__test__";
+                localStorage.setItem(testKey, "1");
+                localStorage.removeItem(testKey);
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        if( STATUS_REW !== "報酬不明" ) {
+            // ボタンのイベント処理
+            document.addEventListener("click", (event) => {
+                if (event.target.id === "myitem_inc" && myitem < sum) {
+                    myitem++;
+                } else if (event.target.id === "myitem_dec" && myitem > 0) {
+                    myitem--;
+                }
+
+                for (let j = 0; j < item.length / 3; j++) {
+                    if (event.target.id === `item_inc${j}` && item_count[j] < item[j * 3 + 2] && r_myitem >= item[j * 3 + 1]) {
+                        item_count[j]++;
+                    } else if (event.target.id === `item_dec${j}` && item_count[j] > 0) {
+                        item_count[j]--;
+                    }
+                }
+
+                d_tg300();
+            });
+        }
+
+        if((d_quest.length + w_quest.length + m_quest.length + s_quest.length) > 0) {
+            const p = document.createElement("p");
+            p.textContent = `${str_title_quest}`;
+            p.style.fontWeight = "bold";
+            p.classList.add("indent-quest_title");
+            document.body.appendChild(p);
+        }
+        if( d_quest.length > 0 ) {
+            const p = document.createElement("p");
+            p.textContent = `${str_title_daily}`;
+            p.classList.add("indent-quest_subtitle");
+            p.classList.add("marker", "subtitle");
+            document.body.appendChild(p);
+            d_quest.forEach((_, i) => {
+                if(i % 2 === 0) {
+                    const p = document.createElement("p");
+                    p.id = `tg10${Math.floor(i / 2)}`;
+                    p.classList.add("indent-quest_item");
+                    document.body.appendChild(p);
+                }
+            });
+        }
+        if( w_quest.length > 0 ) {
+            const p = document.createElement("p");
+            p.textContent = `${str_title_weekly}`;
+            p.classList.add("indent-quest_subtitle");
+            p.classList.add("marker", "subtitle");
+            document.body.appendChild(p);
+            w_quest.forEach((_, i) => {
+                if(i % 2 === 0) {
+                    const p = document.createElement("p");
+                    p.id = `tg11${Math.floor(i / 2)}`;
+                    p.classList.add("indent-quest_item");
+                    document.body.appendChild(p);
+                }
+            });
+        }
+        if( m_quest.length > 0 ) {
+            const p = document.createElement("p");
+            p.textContent = `${str_title_monthly}`;
+            p.classList.add("indent-quest_subtitle");
+            p.classList.add("marker", "subtitle");
+            document.body.appendChild(p);
+            m_quest.forEach((_, i) => {
+                if(i % 2 === 0) {
+                    const p = document.createElement("p");
+                    p.id = `tg12${Math.floor(i / 2)}`;
+                    p.classList.add("indent-quest_item");
+                    document.body.appendChild(p);
+                }
+            });
+        }
+        if( s_quest.length > 0 ) {
+            const p = document.createElement("p");
+            p.textContent = `${str_title_once}`;
+            p.classList.add("indent-quest_subtitle");
+            p.classList.add("marker", "subtitle");
+            document.body.appendChild(p);
+            s_quest.forEach((_, i) => {
+                if(i % 2 === 0) {
+                    const p = document.createElement("p");
+                    p.id = `tg13${Math.floor(i / 2)}`;
+                    p.classList.add("indent-quest_item");
+                    document.body.appendChild(p);
+                }
+            });
+        }
+        const p200 = document.createElement("p");
+        p200.id = "tg200"
+        document.body.appendChild(p200);
+        const p210 = document.createElement("p");
+        p210.id = "tg210"
+        document.body.appendChild(p210);
+
+        if( STATUS_REW !== "報酬不明" ) {
+            const p300 = document.createElement("p");
+            p300.innerHTML = `<span id="tg300"></span><span id="tg301"></span>`
+            document.body.appendChild(p300);
+
+            if( item.length > 0 ) {
+                const p = document.createElement("p");
+                p.textContent = `${str_title_reward}`;
+                p.style.fontWeight = "bold";
+                p.classList.add("indent-reward_title");
+                document.body.appendChild(p);
+
+                item.forEach((_, i) => {
+                    if(i % 3 === 0) {
+                        const p = document.createElement("p");
+                        p.innerHTML = `<span id="tg31${Math.floor(i/3)+1}"></span><span id="tg32${Math.floor(i/3)+1}"></span>`;
+                        p.classList.add("indent-reward_item");
+                        p.classList.add("marker", "item");
+                        document.body.appendChild(p);
+                     }
+                });
+            }
+
+            const p400 = document.createElement("p");
+            p400.id = "tg400"
+            document.body.appendChild(p400);
+        }
+
+        // フッター（ivdata.js の STR_FOOTER を最下部に表示）
+        if( typeof STR_FOOTER !== "undefined" && STR_FOOTER !== "" ) {
+            const footer = document.createElement("footer");
+            footer.innerHTML = STR_FOOTER;
+            footer.classList.add("footer");
+            document.body.appendChild(footer);
+        }
+
+        // 前回の main() が終わってから次回を予約する（重複実行を防ぐ）
+        async function tick() {
+            try {
+                await main();
+            } catch (error) {
+                console.error(error);
+            }
+            // 次の秒の境目に合わせて実行
+            setTimeout(tick, 1000 - (currentDate.getTime() % 1000) + 10);
+        }
+        tick();
+    </script>
+</body>
+</html>
